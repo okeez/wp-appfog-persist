@@ -35,6 +35,21 @@ $ap = new AppFogPersist();
 $ap->initialize();
 $ap->persist();
 
+add_action ( 'edit_attachment', 'persistAttachment', 1);
+add_action ( 'edit_attachment', 'persistOnLoad', 1);
+
+function persistAttachment()
+{
+    $ap = new AppFogPersist();
+    $ap->persist(true);
+}
+
+function persistOnLoad()
+{
+    $ap = new AppFogPersist();
+    $ap->persist(false);
+}
+
 class AppFogPersist
 {
     
@@ -43,7 +58,7 @@ class AppFogPersist
         $this->createTable();
     }
     
-    public function persist()
+    public function persist($force = false)
     {
         global $wpdb;
         
@@ -51,7 +66,7 @@ class AppFogPersist
         //open an exclusive file lock. If the lock can't be established,
         //there's no need to run the persistence cycle right now.
         $fp = fopen(plugin_dir_path(__FILE__) . 'persist.lck', 'r+');
-        if (flock($fp, LOCK_EX | LOCK_NB)) 
+        if (flock($fp, LOCK_EX | LOCK_NB) || $force) 
         {
             //Get the path to the upload folder 
             $upload_dir = wp_upload_dir();
@@ -68,8 +83,8 @@ class AppFogPersist
                     //Do not persists symbolic links
                     if(!is_link($filename))
                     {                        
-                        //Get the native path for the file                         
-                        $safename = addslashes($filename); 
+                        //Get the native path for the file + uploads subfolder                       
+                        $safename = addslashes(str_replace($upload_dir, '', $filename)); 
                         
                         //Check if this file is already persisted in the database
                         $sql = "SELECT id FROM wp_appfog_persist WHERE path = '$safename'";
@@ -80,6 +95,7 @@ class AppFogPersist
                         {
                             $binary = addslashes(file_get_contents($filename));
                             $sql = "INSERT INTO wp_appfog_persist (id, path, data) VALUES (NULL, '$safename', '{$binary}')";
+                            $wpdb->query($sql);
                         }
                     } 
                 }
@@ -93,10 +109,12 @@ class AppFogPersist
             foreach($pfiles as $pfile)
             {
                 //If the file is no longer there, restore it from the db
-                if(!file_exists($pfile->path))
+                $fullPath = $upload_dir . $pfile->path;
+                
+                if(!file_exists($fullPath))
                 {
                     //First, create the folder path if necessary
-                    $folder = dirname($pfile->path);
+                    $folder = dirname($fullPath);
                     $id = $pfile->id;
                     if(!is_dir($folder))
                     {
@@ -106,7 +124,7 @@ class AppFogPersist
                     //Now get the binary data and write it to the file path
                     $sql = "SELECT * from wp_appfog_persist WHERE id = $id";
                     $rec = $wpdb->get_row($sql);
-                    file_put_contents($pfile->path, $rec->data);
+                    file_put_contents($fullPath, $rec->data);
                 }
             } 
         }
