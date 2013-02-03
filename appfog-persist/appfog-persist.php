@@ -86,7 +86,7 @@ class AppFogPersist
                     {                        
                         //Get the native path for the file + uploads subfolder                       
                         $safename = addslashes(str_replace($upload_dir['basedir'], '', $filename)); 
-                        echo "$safename\n";
+                        //echo "$safename\n";
                         
                         //Check if this file is already persisted in the database
                         $sql = "SELECT id FROM wp_appfog_persist WHERE path = '$safename'";
