@@ -70,9 +70,10 @@ class AppFogPersist
         {
             //Get the path to the upload folder 
             $upload_dir = wp_upload_dir();
+            //echo "Upload dir: " . $upload_dir['basedir'] . "\n";
             
             //Get all subfolders and files in the upload folder 
-            $ite = new RecursiveDirectoryIterator($upload_dir['path']);
+            $ite = new RecursiveDirectoryIterator($upload_dir['basedir']);
             
             //Loop through all files and persist any new ones
             foreach (new RecursiveIteratorIterator($ite) as $filename=>$cur) 
@@ -84,7 +85,8 @@ class AppFogPersist
                     if(!is_link($filename))
                     {                        
                         //Get the native path for the file + uploads subfolder                       
-                        $safename = addslashes(str_replace($upload_dir, '', $filename)); 
+                        $safename = addslashes(str_replace($upload_dir['basedir'], '', $filename)); 
+                        echo "$safename\n";
                         
                         //Check if this file is already persisted in the database
                         $sql = "SELECT id FROM wp_appfog_persist WHERE path = '$safename'";
@@ -109,7 +111,7 @@ class AppFogPersist
             foreach($pfiles as $pfile)
             {
                 //If the file is no longer there, restore it from the db
-                $fullPath = $upload_dir . $pfile->path;
+                $fullPath = $upload_dir['basedir'] . $pfile->path;
                 
                 if(!file_exists($fullPath))
                 {
